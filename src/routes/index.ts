@@ -1,3 +1,4 @@
+/* */
 import { Express, Request, Response } from 'express';
 import { roomsRouter } from './rooms.js';
 import { bookingsRouter } from './bookings.js';
@@ -8,21 +9,26 @@ import { tripsRouter } from './trips.js';
 import { invoicesRouter } from './invoices.js';
 import { reportsRouter } from './reports.js';
 import { userRouter } from './user.js';
+import { settingsRouter } from './settings.js';
+import { dealsRouter } from './deals.js';
+import { ratesRouter } from './rates.js'; // ✅ Import Rates Router
 
 export function registerRoutes(app: Express): void {
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
   });
 
-  app.use('/rooms', roomsRouter);
-  app.use('/bookings', bookingsRouter);
-  app.use('/menu', menuRouter);
-  app.use('/orders', ordersRouter);
-  app.use('/inventory', inventoryRouter);
-  app.use('/trips', tripsRouter);
-  app.use('/invoices', invoicesRouter);
-  app.use('/reports', reportsRouter);
-  app.use('/me', userRouter);
+  // API Routes
+  app.use('/api/users', userRouter); 
+  app.use('/api/rooms', roomsRouter);
+  app.use('/api/bookings', bookingsRouter);
+  app.use('/api/menu', menuRouter);
+  app.use('/api/orders', ordersRouter);
+  app.use('/api/inventory', inventoryRouter);
+  app.use('/api/trips', tripsRouter);
+  app.use('/api/invoices', invoicesRouter);
+  app.use('/api/reports', reportsRouter);
+  app.use('/api/settings', settingsRouter);
+  app.use('/api/deals', dealsRouter);
+  app.use('/api/rates', ratesRouter); // ✅ Register Rates Route
 }
-
-
