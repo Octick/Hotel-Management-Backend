@@ -1,16 +1,47 @@
-/* */
 import { Router, Request, Response } from 'express';
 import { authenticate, requireRoles } from '../middleware/auth.js';
 import { User } from '../models/user.js';
 import { logger } from '../lib/logger.js';
-// ✅ FIX: Now works because firebaseAdmin.ts exports 'auth'
 import { auth } from '../lib/firebaseAdmin.js'; 
 
 export const userRouter = Router();
-userRouter.use(authenticate());
 
-// GET /api/users - List all users
-userRouter.get('/', requireRoles('admin', 'manager', 'receptionist'), async (req: Request, res: Response) => {
+/**
+ * @route POST /api/users/register
+ * @desc Sync a new Firebase user to MongoDB immediately after sign-up
+ * @access Private (Verified Firebase User)
+ */
+userRouter.post('/register', authenticate(), async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { name, email, phone } = req.body;
+
+    // Check if user already exists in MongoDB to prevent duplicate entries
+    let user = await User.findOne({ uid: req.user.uid });
+    
+    if (!user) {
+      user = await User.create({
+        uid: req.user.uid,
+        email: email || req.user.email,
+        name: name || 'New User',
+        phone: phone,
+        roles: ['customer'] // Default role for self-registration
+      });
+      logger.info({ uid: user.uid }, 'New user successfully synced to MongoDB');
+    }
+
+    res.status(201).json(user);
+  } catch (err: any) {
+    logger.error({ err }, 'Registration sync failed');
+    res.status(500).json({ error: 'Failed to sync user to database' });
+  }
+});
+
+// GET /api/users - List all users (Admin/Staff only)
+userRouter.get('/', authenticate(), requireRoles('admin', 'manager', 'receptionist'), async (req: Request, res: Response) => {
   try {
     const users = await User.find({}).sort({ createdAt: -1 });
     res.json(users);
@@ -21,7 +52,7 @@ userRouter.get('/', requireRoles('admin', 'manager', 'receptionist'), async (req
 });
 
 // GET /api/users/me - Current Profile
-userRouter.get('/me', async (req: Request, res: Response) => {
+userRouter.get('/me', authenticate(), async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const user = await User.findOne({ uid: req.user.uid });
@@ -32,7 +63,7 @@ userRouter.get('/me', async (req: Request, res: Response) => {
 });
 
 // PUT /api/users/me - Update Current Profile
-userRouter.put('/me', async (req: Request, res: Response) => {
+userRouter.put('/me', authenticate(), async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const { name, phone } = req.body; 
@@ -47,17 +78,15 @@ userRouter.put('/me', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/users/create - Admin Create User
-userRouter.post('/create', requireRoles('admin'), async (req: Request, res: Response) => {
+// POST /api/users/create - Admin explicitly creates a user
+userRouter.post('/create', authenticate(), requireRoles('admin'), async (req: Request, res: Response) => {
   try {
     const { email, password, name, role, phone } = req.body;
-    // 1. Create in Firebase
     const firebaseUser = await auth.createUser({
       email,
       password: password || 'password123',
       displayName: name,
     });
-    // 2. Create in MongoDB
     const newUser = await User.create({
       uid: firebaseUser.uid,
       email,
@@ -72,23 +101,8 @@ userRouter.post('/create', requireRoles('admin'), async (req: Request, res: Resp
   }
 });
 
-// PUT /api/users/:id - Admin Update User
-userRouter.put('/:id', requireRoles('admin'), async (req: Request, res: Response) => {
-  try {
-    const { name, role, status } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { name, roles: [role], status }, 
-      { new: true }
-    );
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update user' });
-  }
-});
-
 // DELETE /api/users/:id - Admin Delete User
-userRouter.delete('/:id', requireRoles('admin'), async (req: Request, res: Response) => {
+userRouter.delete('/:id', authenticate(), requireRoles('admin'), async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
