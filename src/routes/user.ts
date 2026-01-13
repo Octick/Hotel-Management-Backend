@@ -13,9 +13,7 @@ export const userRouter = Router();
  */
 userRouter.post('/register', authenticate(), async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
     const { name, email, phone } = req.body;
 
@@ -28,20 +26,28 @@ userRouter.post('/register', authenticate(), async (req: Request, res: Response)
         email: email || req.user.email,
         name: name || 'New User',
         phone: phone,
-        roles: ['customer'] // Default role for self-registration
+        roles: ['customer'], // Default role for self-registration
+        status: 'active'
       });
       logger.info({ uid: user.uid }, 'New user successfully synced to MongoDB');
+      return res.status(201).json(user);
     }
 
-    res.status(201).json(user);
+    // If user already exists, just return the existing record
+    res.status(200).json(user);
   } catch (err: any) {
     logger.error({ err }, 'Registration sync failed');
     res.status(500).json({ error: 'Failed to sync user to database' });
   }
 });
 
+/**
+ * Top-level middleware: All routes below this line require authentication
+ */
+userRouter.use(authenticate());
+
 // GET /api/users - List all users (Admin/Staff only)
-userRouter.get('/', authenticate(), requireRoles('admin', 'manager', 'receptionist'), async (req: Request, res: Response) => {
+userRouter.get('/', requireRoles('admin', 'manager', 'receptionist'), async (req: Request, res: Response) => {
   try {
     const users = await User.find({}).sort({ createdAt: -1 });
     res.json(users);
@@ -52,7 +58,7 @@ userRouter.get('/', authenticate(), requireRoles('admin', 'manager', 'receptioni
 });
 
 // GET /api/users/me - Current Profile
-userRouter.get('/me', authenticate(), async (req: Request, res: Response) => {
+userRouter.get('/me', async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const user = await User.findOne({ uid: req.user.uid });
@@ -63,7 +69,7 @@ userRouter.get('/me', authenticate(), async (req: Request, res: Response) => {
 });
 
 // PUT /api/users/me - Update Current Profile
-userRouter.put('/me', authenticate(), async (req: Request, res: Response) => {
+userRouter.put('/me', async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const { name, phone } = req.body; 
@@ -79,7 +85,7 @@ userRouter.put('/me', authenticate(), async (req: Request, res: Response) => {
 });
 
 // POST /api/users/create - Admin explicitly creates a user
-userRouter.post('/create', authenticate(), requireRoles('admin'), async (req: Request, res: Response) => {
+userRouter.post('/create', requireRoles('admin'), async (req: Request, res: Response) => {
   try {
     const { email, password, name, role, phone } = req.body;
     const firebaseUser = await auth.createUser({
@@ -92,7 +98,8 @@ userRouter.post('/create', authenticate(), requireRoles('admin'), async (req: Re
       email,
       name,
       phone,
-      roles: [role || 'customer']
+      roles: [role || 'customer'],
+      status: 'active'
     });
     res.status(201).json(newUser);
   } catch (err: any) {
@@ -101,8 +108,23 @@ userRouter.post('/create', authenticate(), requireRoles('admin'), async (req: Re
   }
 });
 
+// PUT /api/users/:id - Admin Update User
+userRouter.put('/:id', requireRoles('admin'), async (req: Request, res: Response) => {
+  try {
+    const { name, role, status } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { name, roles: [role], status }, 
+      { new: true }
+    );
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
 // DELETE /api/users/:id - Admin Delete User
-userRouter.delete('/:id', authenticate(), requireRoles('admin'), async (req: Request, res: Response) => {
+userRouter.delete('/:id', requireRoles('admin'), async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
