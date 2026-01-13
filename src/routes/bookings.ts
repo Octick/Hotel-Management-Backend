@@ -131,7 +131,7 @@ bookingsRouter.post('/', requireRoles('admin', 'receptionist', 'customer'), asyn
       checkIn: start,
       checkOut: end,
       status: (booking && booking.status === 'checked-in') ? 'CheckedIn' : 'Confirmed',
-      source: 'FrontDesk',
+      source: 'Local',
     });
     
     if (newBooking.status === 'CheckedIn') {
