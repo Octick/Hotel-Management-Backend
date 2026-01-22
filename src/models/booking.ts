@@ -1,12 +1,7 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 
 export type BookingStatus = 'Pending' | 'Confirmed' | 'CheckedIn' | 'CheckedOut' | 'Cancelled';
-export type BookingSource = 'Local' | 'Booking.com' | 'TripAdvisor' | 'Expedia';
-
-export interface IBookingItem {
-  description: string;
-  amount: number;
-}
+export type BookingSource = 'Local' | 'Online' | 'Booking.com' | 'TripAdvisor' | 'Expedia'; 
 
 export interface IBooking extends Document {
   roomId: Types.ObjectId;
@@ -16,6 +11,14 @@ export interface IBooking extends Document {
   status: BookingStatus;
   source: BookingSource;
   sourceBookingId?: string;
+  // ✅ Added missing fields
+  adults: number;
+  children: number;
+  preferences?: {
+    bedType?: string;
+    mealPlan?: string;
+    specialRequests?: string;
+  };
 }
 
 const BookingSchema = new Schema<IBooking>(
@@ -25,8 +28,24 @@ const BookingSchema = new Schema<IBooking>(
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
     status: { type: String, enum: ['Pending', 'Confirmed', 'CheckedIn', 'CheckedOut', 'Cancelled'], default: 'Pending' },
-    source: { type: String, enum: ['Local', 'Booking.com', 'TripAdvisor', 'Expedia'], default: 'Local', index: true },
+    
+    source: { 
+        type: String, 
+        enum: ['Local', 'Online', 'Booking.com', 'TripAdvisor', 'Expedia'], 
+        default: 'Local', 
+        index: true 
+    },
+    
     sourceBookingId: { type: String, index: true },
+    
+    // ✅ Added new fields to Schema
+    adults: { type: Number, default: 1 },
+    children: { type: Number, default: 0 },
+    preferences: {
+        bedType: { type: String },
+        mealPlan: { type: String },
+        specialRequests: { type: String }
+    }
   },
   { timestamps: true }
 );
@@ -34,9 +53,3 @@ const BookingSchema = new Schema<IBooking>(
 BookingSchema.index({ source: 1, sourceBookingId: 1 }, { unique: true, partialFilterExpression: { sourceBookingId: { $exists: true } } });
 
 export const Booking: Model<IBooking> = mongoose.model<IBooking>('Booking', BookingSchema);
-
-
-
-
-
-
