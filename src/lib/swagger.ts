@@ -1,5 +1,5 @@
 import swaggerJsdoc from 'swagger-jsdoc';
-import { version } from '../../package.json' assert { type: 'json' };
+import { version } from '../../package.json' with { type: 'json' };
 
 export function buildSwaggerSpec() {
   return swaggerJsdoc({
