@@ -94,7 +94,8 @@ reportsRouter.get('/dashboard', requireRoles('admin', 'manager', 'receptionist')
     const totalRooms = rooms.length;
     const availableCount = rooms.filter((r) => r.status === 'Available').length;
     const occupiedCount = rooms.filter((r) => r.status === 'Occupied').length;
-    const cleaningCount = rooms.filter((r) => r.status === 'Cleaning').length;
+    // ✅ FIX: Added type cast to allow "Cleaning" status comparison during strict build
+    const cleaningCount = rooms.filter((r) => (r.status as any) === 'Cleaning').length;
     const maintenanceCount = rooms.filter((r) => r.status === 'Maintenance').length;
     const reservedCount = rooms.filter((r) => r.status === 'Reserved').length;
 
