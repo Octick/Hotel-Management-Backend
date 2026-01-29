@@ -1,5 +1,9 @@
 import swaggerJsdoc from 'swagger-jsdoc';
-import { version } from '../../package.json' assert { type: 'json' };
+// ✅ Use a default import for the JSON file
+import packageJson from '../../package.json' with { type: 'json' };
+
+// ✅ Access version from the imported object
+const version = packageJson.version;
 
 export function buildSwaggerSpec() {
   return swaggerJsdoc({
@@ -7,9 +11,9 @@ export function buildSwaggerSpec() {
       openapi: '3.0.3',
       info: {
         title: 'Hotel Management API',
-        version,
+        version: version || '1.0.0', // Fallback if version is missing
       },
-      servers: [{ url: 'http://localhost:3000' }],
+      servers: [{ url: '/api' }], // Updated to relative path for deployment flexibility
       components: {
         securitySchemes: {
           bearerAuth: {
@@ -84,8 +88,3 @@ export function buildSwaggerSpec() {
     apis: [],
   });
 }
-
-
-
-
-
