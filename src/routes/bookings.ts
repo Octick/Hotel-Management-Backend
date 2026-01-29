@@ -6,6 +6,7 @@ import { Deal } from '../models/deal.js';
 import { Invoice } from '../models/invoice.js';
 import { Room } from '../models/room.js';
 import { User } from '../models/user.js';
+import { Order } from '../models/order.js'; // ✅ FIX: Added missing import
 import { sendNotification } from '../services/notificationService.js';
 import { calculateBookingCharges } from '../utils/bookingCalculations.js';
 
@@ -198,7 +199,7 @@ bookingsRouter.post('/', requireRoles('admin', 'receptionist', 'customer'), asyn
     // Find applicable deals
     const allowedDealStatuses = ['Ongoing', 'New', 'Inactive', 'Full'];
     const potentialDeals = await Deal.find({
-      status: { $in: allowedDealStatuses },
+      status: { $in: ['Ongoing', 'New', 'Inactive', 'Full'] },
       $or: [
         { roomIds: { $in: [roomId] } },
         { roomType: new RegExp(`^${(room as any).type}$`, 'i') }
@@ -464,8 +465,8 @@ bookingsRouter.put('/:id', requireRoles('admin', 'receptionist', 'manager'), asy
           // Rebuild invoice items with new breakdown
           const bookingPopulated = await Booking.findById(updated._id).populate('roomId');
           if (bookingPopulated) {
-            const { buildAutoLineItems } = await import('../routes/invoices.js');
-            const newRoomItems = await buildAutoLineItems(updated._id.toString());
+            const { buildAutoLineItems } = await import('../routes/invoices.js') as any; // ✅ FIX: Added type casting
+            const newRoomItems = await buildAutoLineItems((updated as any)._id.toString()); // ✅ FIX: Added type casting
 
             // Keep custom items, replace only room booking items
             const customItems = invoice.lineItems.filter((item: any) => item.source !== 'booking');
