@@ -1,10 +1,11 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IUser extends Document {
   uid?: string;          // Made optional for shadow profiles
   email: string;
   name: string;
   phone?: string;
+  idNumber?: string;     // Passport or National ID
   roles: string[];
   status: 'active' | 'inactive';
   createdAt: Date;
@@ -13,26 +14,27 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>(
   {
-    uid: { 
-      type: String, 
+    uid: {
+      type: String,
       required: false, // Allows creation of guest profiles without Firebase UID
-      unique: true, 
+      unique: true,
       sparse: true,    // Essential: allows multiple null/missing values in a unique index
-      index: true 
+      index: true
     },
-    email: { 
-      type: String, 
-      required: true, 
-      unique: true, 
-      lowercase: true, 
-      trim: true 
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true
     },
     name: { type: String, required: true },
     phone: { type: String },
-    roles: { 
-      type: [String], 
+    idNumber: { type: String }, // Passport or National ID
+    roles: {
+      type: [String],
       default: ['customer'],
-      enum: ['admin', 'manager', 'receptionist', 'customer'] 
+      enum: ['admin', 'manager', 'receptionist', 'customer']
     },
     status: {
       type: String,

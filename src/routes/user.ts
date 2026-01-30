@@ -126,39 +126,76 @@ userRouter.get('/', requireRoles('admin', 'manager', 'receptionist'), async (req
 
 /**
  * POST /api/users/guest
- * ✅ NEW ENDPOINT: Create a shadow/walk-in guest without password/Firebase
- * Used by "New Booking" modal
+ * Create a guest user with Firebase authentication
+ * Used by "New Booking" modal by receptionist/admin
  */
 userRouter.post('/guest', requireRoles('admin', 'receptionist', 'manager'), async (req: Request, res: Response) => {
   try {
-    const { email, name, phone } = req.body;
+    const { email, name, phone, idNumber, password } = req.body;
 
     if (!email || !name) {
       return res.status(400).json({ error: "Name and Email are required" });
     }
 
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: "Password is required and must be at least 6 characters" });
+    }
+
     const targetEmail = email.toLowerCase().trim();
 
-    // Check if user already exists
+    // Check if user already exists in MongoDB
     let user = await User.findOne({ email: targetEmail });
-    if (user) {
-      // Return existing user so booking can proceed
+    if (user && user.uid) {
+      // User exists with Firebase UID - return existing
       return res.status(200).json(user);
     }
 
-    // Create new shadow user (no UID)
-    user = await User.create({
-      email: targetEmail,
-      name,
-      phone: phone || '',
-      roles: ['customer'],
-      status: 'active'
-    });
+    // Create in Firebase Auth
+    let firebaseUser;
+    try {
+      firebaseUser = await admin.auth().createUser({
+        email: targetEmail,
+        password,
+        displayName: name,
+        phoneNumber: phone || undefined
+      });
+    } catch (firebaseError: any) {
+      // If user already exists in Firebase, try to get them
+      if (firebaseError.code === 'auth/email-already-exists') {
+        try {
+          firebaseUser = await admin.auth().getUserByEmail(targetEmail);
+        } catch (e) {
+          return res.status(500).json({ error: "User exists in Auth but could not be retrieved." });
+        }
+      } else {
+        return res.status(400).json({ error: `Firebase Error: ${firebaseError.message}` });
+      }
+    }
+
+    // Create or update in MongoDB
+    if (user) {
+      // Update existing shadow user with UID and other details
+      user.uid = firebaseUser.uid;
+      user.phone = phone || user.phone;
+      user.idNumber = idNumber || user.idNumber;
+      await user.save();
+    } else {
+      // Create new authenticated user
+      user = await User.create({
+        uid: firebaseUser.uid,
+        email: targetEmail,
+        name,
+        phone: phone || '',
+        idNumber: idNumber || '',
+        roles: ['customer'],
+        status: 'active'
+      });
+    }
 
     res.status(201).json(user);
   } catch (err: any) {
     console.error("Guest Creation Error:", err);
-    res.status(500).json({ error: 'Failed to create guest user' });
+    res.status(500).json({ error: err.message || 'Failed to create guest user' });
   }
 });
 

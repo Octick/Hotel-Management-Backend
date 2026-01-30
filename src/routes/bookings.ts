@@ -4,9 +4,9 @@ import { authenticate, requireRoles } from '../middleware/auth.js';
 import { Booking } from '../models/booking.js';
 import { Deal } from '../models/deal.js';
 import { Invoice } from '../models/invoice.js';
+import { Order } from '../models/order.js'; // ✅ FIX: Added missing import
 import { Room } from '../models/room.js';
 import { User } from '../models/user.js';
-import { Order } from '../models/order.js'; // ✅ FIX: Added missing import
 import { sendNotification } from '../services/notificationService.js';
 import { calculateBookingCharges } from '../utils/bookingCalculations.js';
 
@@ -401,6 +401,21 @@ bookingsRouter.put('/:id', requireRoles('admin', 'receptionist', 'manager'), asy
     if (req.body.checkIn || req.body.checkOut) {
       const newCheckIn = req.body.checkIn ? new Date(req.body.checkIn) : booking.checkIn;
       const newCheckOut = req.body.checkOut ? new Date(req.body.checkOut) : booking.checkOut;
+
+      // Prevent overlapping bookings for the same room (exclude this booking)
+      const overlapping = await Booking.findOne({
+        _id: { $ne: booking._id },
+        roomId: booking.roomId,
+        status: { $in: ['Confirmed', 'CheckedIn'] },
+        checkIn: { $lt: newCheckOut },
+        checkOut: { $gt: newCheckIn }
+      }).lean();
+
+      if (overlapping) {
+        return res.status(409).json({
+          error: 'Room is already booked for the selected dates. Extension is not allowed.'
+        });
+      }
 
       // Fetch current room and any applicable deals
       const room = await Room.findById(booking.roomId).lean();
