@@ -79,6 +79,7 @@ userRouter.get('/me', async (req: Request, res: Response) => {
         email: req.user.email || '',
         name: req.user.email?.split('@')[0] || 'User',
         phone: '',
+        idNumber: '',
         roles: ['customer'],
         status: 'active'
       });

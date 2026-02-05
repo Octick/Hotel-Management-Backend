@@ -98,8 +98,8 @@ roomsRouter.get('/available', async (req: Request, res: Response) => {
 
     const start = new Date(checkIn);
     const end = new Date(checkOut);
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
-      console.error('[ROOMS/AVAILABLE] Invalid date range:', { checkIn, checkOut, startValid: !isNaN(start.getTime()), endValid: !isNaN(end.getTime()), startGteEnd: start >= end });
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      console.error('[ROOMS/AVAILABLE] Invalid date range:', { checkIn, checkOut, startValid: !isNaN(start.getTime()), endValid: !isNaN(end.getTime()), startGtEnd: start > end });
       return res.status(400).json({ error: 'Invalid date range' });
     }
 

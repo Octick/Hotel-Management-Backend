@@ -61,13 +61,18 @@ export function calculateBookingCharges(
         lineItemDescriptions: []
     };
 
-    // Calculate total nights
+    // Calculate total nights (same day checkout = 1 night)
     const totalNights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
     result.totalNights = totalNights;
 
     // Group days by month
     let currentDate = new Date(checkIn);
     const endDate = new Date(checkOut);
+
+    // For same-day checkout, treat as 1 night ending next day
+    if (currentDate.getTime() === endDate.getTime()) {
+        endDate.setDate(endDate.getDate() + 1);
+    }
 
     while (currentDate < endDate) {
         const month = currentDate.getMonth();

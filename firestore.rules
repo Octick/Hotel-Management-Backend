@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // Allow authenticated users to read all notifications (no filtering at rules level)
-    // Filtering is done client-side by targetRoles and targetUserId
+    // Filtering is done client-side by targetRoles and userId
     match /notifications/{notificationId} {
       // Read: authenticated users can read any notification
       // (client-side filtering handles role/user targeting)
@@ -20,7 +20,7 @@ service cloud.firestore {
       // Delete: authenticated users can delete notifications targeting them
       // or notifications they have permission to access
       allow delete: if request.auth != null && (
-        request.auth.uid == resource.data.targetUserId ||
+        request.auth.uid == resource.data.userId ||
         request.auth.token.firebase.sign_in_provider != null
       );
     }
@@ -31,3 +31,4 @@ service cloud.firestore {
     }
   }
 }
+
