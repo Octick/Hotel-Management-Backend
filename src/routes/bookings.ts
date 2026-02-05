@@ -53,7 +53,7 @@ bookingsRouter.post('/calculate-charges', requireRoles('admin', 'receptionist', 
     const start = new Date(checkIn);
     const end = new Date(checkOut);
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
       return res.status(400).json({ error: 'Invalid dates' });
     }
 
@@ -154,8 +154,8 @@ bookingsRouter.post('/', requireRoles('admin', 'receptionist', 'customer'), asyn
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return res.status(400).json({ error: 'Invalid dates provided.' });
     }
-    if (start >= end) {
-      return res.status(400).json({ error: 'Check-out must be after check-in' });
+    if (start > end) {
+      return res.status(400).json({ error: 'Check-out must be same day or after check-in' });
     }
 
     // 2. Availability Check
@@ -186,8 +186,15 @@ bookingsRouter.post('/', requireRoles('admin', 'receptionist', 'customer'), asyn
 
     const finalStatus = (requestedStatus === 'checked-in' || requestedStatus === 'CheckedIn') ? 'CheckedIn' : 'Confirmed';
 
+    // Check if this is a short stay (same day check-in/checkout)
+    const checkInDay = new Date(start);
+    const checkOutDay = new Date(end);
+    checkInDay.setHours(0, 0, 0, 0);
+    checkOutDay.setHours(0, 0, 0, 0);
+    const isShortStay = checkInDay.getTime() === checkOutDay.getTime();
+
     // --- Enhanced Pricing Logic: Pro-rated Deals + Multi-Month Rates ---
-    const nights = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    // Use the calculateBookingCharges function for consistent pricing
     const monthlyRates = (room as any).monthlyRates || [];
     const baseRate = (room as any).rate || 0;
 
@@ -262,7 +269,7 @@ bookingsRouter.post('/', requireRoles('admin', 'receptionist', 'customer'), asyn
     });
 
     const roomTotal = rateBreakdown.total;
-    const appliedRate = roomTotal / nights; // Average rate for display
+    const appliedRate = roomTotal / Math.max(1, rateBreakdown.totalNights); // Average rate for display
 
     const pricingSnapshot = {
       baseRate: appliedRate,
@@ -280,12 +287,13 @@ bookingsRouter.post('/', requireRoles('admin', 'receptionist', 'customer'), asyn
       source: source || 'Local',
       adults: adults || 1,
       children: children || 0,
+      shortStay: isShortStay, // Flag for same-day bookings
       preferences: preferences || {},
       appliedRate,
       appliedRateSource,
       appliedDealId,
       appliedDiscount,
-      roomNights: nights,
+      roomNights: rateBreakdown.totalNights,
       roomTotal,
       pricingSnapshot,
       rateBreakdown // ✅ Save detailed breakdown

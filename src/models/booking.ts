@@ -14,6 +14,7 @@ export interface IBooking extends Document {
   // ✅ Added missing fields
   adults: number;
   children: number;
+  shortStay?: boolean; // Flag for same-day check-in/checkout bookings
   preferences?: {
     bedType?: string;
     mealPlan?: string;
@@ -78,6 +79,7 @@ const BookingSchema = new Schema<IBooking>(
     // ✅ Added new fields to Schema
     adults: { type: Number, default: 1 },
     children: { type: Number, default: 0 },
+    shortStay: { type: Boolean, default: false }, // Flag for same-day bookings
     preferences: {
       bedType: { type: String },
       mealPlan: { type: String },
