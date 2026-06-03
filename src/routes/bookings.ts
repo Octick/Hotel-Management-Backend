@@ -316,36 +316,38 @@ bookingsRouter.post('/', requireRoles('admin', 'receptionist', 'customer'), asyn
     console.log(`✅ [Booking Created] ID: ${newBooking._id}`);
 
     // --- 🔔 NOTIFICATION TRIGGER ---
-    try {
-      const guest = await User.findById(guestId);
-      const room = await Room.findById(roomId).lean();
+    (async () => {
+      try {
+        const guest = await User.findById(guestId);
+        const room = await Room.findById(roomId).lean();
 
-      if (guest && room) {
-        // Use the new specialized notification function
-        await notifyBookingCreated({
-          bookingId: (newBooking as any)._id.toString(),
-          guestId: (guest as any)._id.toString(),
-          guestName: guest.name,
-          guestEmail: guest.email,
-          guestPhone: guest.phone,
-          roomId: roomId.toString(),
-          roomNumber: room.roomNumber,
-          roomType: room.type,
-          checkInDate: start,
-          checkOutDate: end,
-          nights: Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
-          adults,
-          children,
-          totalPrice: (newBooking as any).roomTotal,
-          appliedDiscount: (newBooking as any).appliedDiscount,
-        });
+        if (guest && room) {
+          // Use the new specialized notification function
+          await notifyBookingCreated({
+            bookingId: (newBooking as any)._id.toString(),
+            guestId: (guest as any)._id.toString(),
+            guestName: guest.name,
+            guestEmail: guest.email,
+            guestPhone: guest.phone,
+            roomId: roomId.toString(),
+            roomNumber: room.roomNumber,
+            roomType: room.type,
+            checkInDate: start,
+            checkOutDate: end,
+            nights: Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+            adults,
+            children,
+            totalPrice: (newBooking as any).roomTotal,
+            appliedDiscount: (newBooking as any).appliedDiscount,
+          });
 
-        console.log("✅ [Booking Notification] Process Completed");
+          console.log("✅ [Booking Notification] Process Completed");
+        }
+      } catch (notifErr: any) {
+        console.error("❌ [Booking Notification Failed]", notifErr.message);
+        // Don't let notification errors block the response
       }
-    } catch (notifErr: any) {
-      console.error("❌ [Booking Notification Failed]", notifErr.message);
-      // Don't let notification errors block the response
-    }
+    })();
 
     res.status(201).json(newBooking);
 
