@@ -93,6 +93,41 @@ userRouter.get('/me', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/users/find-or-create-booking-guest
+ * Secure endpoint used by the frontend proxy to link bookings to existing users or create new ones.
+ */
+userRouter.post('/find-or-create-booking-guest', async (req: Request, res: Response) => {
+  try {
+    const { uid, email, name, phone, idNumber } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const targetEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: targetEmail });
+
+    if (user) {
+      // Just return the existing user so the booking can be linked to them
+      return res.status(200).json({ message: 'User found', user });
+    }
+
+    // Otherwise, create a new user
+    user = await User.create({
+      uid: uid || `kandy-reserve-${Date.now()}`,
+      email: targetEmail,
+      name: name || 'Guest',
+      phone: phone || '',
+      idNumber: idNumber || '',
+      roles: ['customer'],
+      status: 'active'
+    });
+
+    res.status(201).json({ message: 'User created', user });
+  } catch (err: any) {
+    logger.error({ err }, 'Find or create booking guest failed');
+    res.status(500).json({ error: 'Failed to find or create user' });
+  }
+});
+
+/**
  * PUT /api/users/me
  */
 userRouter.put('/me', async (req: Request, res: Response) => {
